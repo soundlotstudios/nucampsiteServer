@@ -1,5 +1,5 @@
+const { response } = require("express");
 const express = require("express");
-const bodyParer = require("body-parser");
 const Campsite = require("../models/campsite");
 
 const campsiteRouter = express.Router();
@@ -18,14 +18,14 @@ campsiteRouter
   .post((req, res, next) => {
     Campsite.create(req.body)
       .then((campsite) => {
-        console.log("Campsite Created ", campsite);
+        console.log("Campsite Created", campsite);
         res.statusCode = 200;
         res.setHeader("Content-Type", "application/json");
         res.json(campsite);
       })
       .catch((err) => next(err));
   })
-  .put((req, res) => {
+  .put((req, res, next) => {
     res.statusCode = 403;
     res.end("PUT operation not supported on /campsites");
   })
@@ -44,18 +44,40 @@ campsiteRouter
   .get((req, res, next) => {
     Campsite.findById(req.params.campsiteId)
       .then((campsite) => {
-        res.statusCode = 200;
-        res.setHeader("Content-Type", "application/json");
-        res.json(campsite);
+        if (campsite) {
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.json(campsite);
+        } else {
+          err = new Error(`Campsite ${req.params.campsiteId} not found`);
+          err.status = 404;
+          return next(err);
+        }
       })
       .catch((err) => next(err));
   })
-  .post((req, res) => {
-    res.statusCode = 403;
-    res.end(
-      `POST operation not supported on /campsites/${req.params.campsiteId}`
-    );
+  .post((req, res, next) => {
+    Campsite.findById(req.params.campsiteId)
+      .then((campsite) => {
+        if (campsite) {
+          campsite.comments.push(req.body);
+          campsite
+            .save()
+            .then((campsite) => {
+              res.statusCode = 200;
+              res.setHeader("Content-Type", "application/json");
+              res.json(campsite);
+            })
+            .catch((err) => next(err));
+        } else {
+          err = new Error(`Campsite ${req.params.campsiteId} not found`);
+          err.status = 404;
+          return next(err);
+        }
+      })
+      .catch((err) => next(err));
   })
+
   .put((req, res, next) => {
     Campsite.findByIdAndUpdate(
       req.params.campsiteId,
@@ -119,7 +141,7 @@ campsiteRouter
       })
       .catch((err) => next(err));
   })
-  .put((req, res) => {
+  .put((req, res, next) => {
     res.statusCode = 403;
     res.end(
       `PUT operation not supported on /campsites/${req.params.campsiteId}/comments`
@@ -170,7 +192,7 @@ campsiteRouter
       })
       .catch((err) => next(err));
   })
-  .post((req, res) => {
+  .post((req, res, next) => {
     res.statusCode = 403;
     res.end(
       `POST operation not supported on /campsites/${req.params.campsiteId}/comments/${req.params.commentId}`
